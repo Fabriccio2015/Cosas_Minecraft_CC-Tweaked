@@ -6,21 +6,38 @@ local PROTOCOL = "data-transfer-v1"
 local CHUNK_SIZE = 4000
 local TIMEOUT = 30
 
--- ABRIR MODEM
-local modem
+-- SELECCION DEL MODEM
 
-for _, name in ipairs(peripheral.getNames()) do
-    if peripheral.getType(name) == "modem" then
-        modem = name
-        break
+print("Transferencia de datos")
+print("")
+print("Modems disponibles:")
+
+local modems = {}
+
+for _, nombre in ipairs(peripheral.getNames()) do
+    if peripheral.getType(nombre) == "modem" then
+        modems[#modems + 1] = nombre
+        print("- " .. nombre)
     end
 end
 
-if not modem then
+if #modems == 0 then
     error("No se encontro ningun modem.")
 end
 
+print("")
+write("Nombre del modem: ")
+
+local modem = read()
+
+if peripheral.getType(modem) ~= "modem" then
+    error("El nombre indicado no corresponde a un modem.")
+end
+
 rednet.open(modem)
+
+print("Modem abierto: " .. modem)
+print("")
 
 -- FUNCIONES DE RED
 
@@ -66,8 +83,8 @@ end
 -- SERVIDOR
 
 local function server()
-    print("Data Transfer - SERVIDOR")
-    print("ID: " .. os.getComputerID())
+    print("Transferencia de datos - SERVIDOR")
+    print("ID de la computadora: " .. os.getComputerID())
     print("Protocolo: " .. PROTOCOL)
     print("Esperando solicitudes...")
 
@@ -80,13 +97,14 @@ local function server()
 
             local path = fs.combine("/", request.path)
 
-            print("Solicitud de PC #" .. id)
-            print("Ruta: " .. path)
+            print("")
+            print("Solicitud de la PC #" .. id)
+            print("Ruta solicitada: " .. path)
 
             if path == "/" or not fs.exists(path) then
                 sendPacket(id, {
                     type = "error",
-                    message = "Archivo o carpeta inexistente."
+                    message = "El archivo o la carpeta no existe."
                 }, 1)
 
             else
@@ -112,6 +130,7 @@ local function server()
                 })
 
                 -- ENVIAR ARCHIVO
+
                 local function sendFile(filePath, relative)
                     local file = fs.open(filePath, "rb")
 
@@ -150,7 +169,8 @@ local function server()
                     })
                 end
 
-                -- RECORRER CARPETAS
+                -- RECORRER CARPETAS RECURSIVAMENTE
+
                 local function sendDirectory(dirPath, relative)
                     local entries = fs.list(dirPath)
                     table.sort(entries)
@@ -213,7 +233,9 @@ end
 -- CLIENTE
 
 local function client(serverId, remotePath, localPath)
-    print("Data Transfer - CLIENTE")
+    localPath = fs.combine("/", localPath)
+
+    print("Transferencia de datos - CLIENTE")
     print("Servidor: #" .. serverId)
     print("Solicitando: " .. remotePath)
 
@@ -246,7 +268,7 @@ local function client(serverId, remotePath, localPath)
         rootPath = fs.combine(localPath, message.root)
 
         if fs.exists(rootPath) and not fs.isDir(rootPath) then
-            print("Error: el destino ya es un archivo.")
+            print("Error: el destino ya existe como archivo.")
             return
         end
 
@@ -341,13 +363,13 @@ local function client(serverId, remotePath, localPath)
     end
 
     if failed then
-        print("Transferencia terminada con errores.")
+        print("Transferencia finalizada con errores.")
     else
         print("Transferencia completada!")
     end
 end
 
--- INICIO
+-- INICIO DEL PROGRAMA
 
 local args = {...}
 
@@ -368,7 +390,7 @@ elseif args[1] == "get" then
     client(id, remote, destination)
 
 else
-    print("Data Transfer")
+    print("Transferencia de datos")
     print("")
     print("Modos disponibles:")
     print("  server")
