@@ -5,6 +5,6 @@ while true do
     pwd = shell.resolve(".")
     write("[/" .. pwd .. "]>")
     comando = read()
-    if comando == exit then break
+    if comando == "exit" then break
     else shell.run(comando) end
 end
