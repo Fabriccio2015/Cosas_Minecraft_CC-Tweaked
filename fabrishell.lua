@@ -43,7 +43,14 @@ while true do
         table.remove(argumentos_comando, 1)
         if comando[1] then
             local programa, error = loadfile(fs.combine("/disk2","apps",comando[1]),"bt",_ENV)
-            if programa then programa(table.unpack(argumentos_comando)) else print("ERROR: " .. error) end
+            if programa then
+                local exito, error = pcall(programa, table.unpack(argumentos_comando))
+                if not exito then
+                    print("ERROR: " .. error)
+                end
+            else
+                print("ERROR: " .. error)
+            end
         end
     end
 end
