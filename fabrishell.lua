@@ -9,21 +9,29 @@ local function separar(texto)
     for i = 1, #texto do
         local c = texto:sub(i, i)
 
-        if c == " " and not escapar then
-            table.insert(resultado, actual)
-            actual = ""
+        if escapar then
+            actual = actual .. c
+            escapar = false
+        elseif c == "\\" then
+            escapar = true
+        elseif c == " " then
+            if #actual > 0 then
+                table.insert(resultado, actual)
+                actual = ""
+            end
         else
             actual = actual .. c
         end
-
-        if c == "\\" then
-            escapar = not escapar
-        else
-            escapar = false
-        end
     end
 
-    table.insert(resultado, actual)
+    if escapar then
+        actual = actual .. "\\"
+    end
+
+    if #actual > 0 then
+        table.insert(resultado, actual)
+    end
+
     return resultado
 end
 while true do
@@ -35,7 +43,7 @@ while true do
         table.remove(argumentos_comando, 1)
         if comando[1] then
             local programa, error = loadfile(fs.combine("/disk2","apps",comando[1]),"bt",_ENV)
-            if programa then programa(table.unpack(argumentos_comando)) else print("ERROR: " .. error)
+            if programa then programa(table.unpack(argumentos_comando)) else print("ERROR: " .. error) end
         end
     end
 end
