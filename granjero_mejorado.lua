@@ -3,13 +3,13 @@ print("Programado por: Fabriccio (Fabri2015)")
 sleep(2)
 print("Coloque las semillas en el slot 1 y pulse cualquier tecla... ")
 _, _ = os.pullEvent("key")
-turtle.select(1)
 local espera_entre_ejecuciones = 20
 local filas = 7
 local columnas = 7
 local fila_actual = 1
 local columna_actual = 1
 while true do
+    turtle.select(1)
     for fila_actual=1,filas do
         print("Fila #" .. tostring(fila_actual))
         turtle.turnRight()
@@ -56,6 +56,9 @@ while true do
     turtle.turnRight()
     turtle.turnRight()
     print("Trigo cosechado y replantado")
-    print("Esperando...")
+    turtle.select(2)
+    turtle.drop(64)
+    turtle.select(16)
+    turtle.refuel(2)
     sleep(espera_entre_ejecuciones)
 end
