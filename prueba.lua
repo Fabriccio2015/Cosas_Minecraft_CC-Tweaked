@@ -6,21 +6,21 @@ monitor.setTextScale(0.5)
 
 local w, h = monitor.getSize()
 
+assert(w >= 32 and h >= 14, "Monitor demasiado pequeno")
+
 -- Crear las ventanas
-local win1 = window.create(monitor, 1, h - 13, w, 14)
+local keyboardY = h - 13
+
+local win1 = window.create(monitor, 1, keyboardY, w, 14)
 local win2 = window.create(monitor, 1, 1, w, h - 14)
 
--- Configurar ventanas
 win1.setBackgroundColor(colors.gray)
 win2.setBackgroundColor(colors.black)
 
 win1.clear()
 win2.clear()
 
--- Teclado
-local keyboard = {}
-
--- Modificadores activados
+-- Estado de las teclas modificadoras
 local held = {}
 
 local modifierKeys = {
@@ -28,6 +28,9 @@ local modifierKeys = {
     ctrl = keys.leftCtrl,
     alt = keys.leftAlt
 }
+
+-- Lista de teclas
+local keyboard = {}
 
 local function addKey(label, x, y, width, value, shifted, kind)
     table.insert(keyboard, {
@@ -41,32 +44,71 @@ local function addKey(label, x, y, width, value, shifted, kind)
     })
 end
 
--- Fila de numeros
-local nums = {
-    {"1", "!"}, {"2", "@"}, {"3", "#"}, {"4", "$"},
-    {"5", "%"}, {"6", "^"}, {"7", "&"}, {"8", "*"},
-    {"9", "("}, {"0", ")"}
-}
+-- Crear filas distribuyendo el ancho disponible
+local function addRow(items, y)
+    local count = #items
+    local baseWidth = math.floor(w / count)
+    local remainder = w % count
+    local x = 1
 
-for i, v in ipairs(nums) do
-    addKey(v[1], 2 + (i - 1) * 3, 1, 3, v[1], v[2])
+    for i, item in ipairs(items) do
+        local width = baseWidth
+
+        if i <= remainder then
+            width = width + 1
+        end
+
+        addKey(
+            item[1],
+            x,
+            y,
+            width,
+            item[2],
+            item[3]
+        )
+
+        x = x + width
+    end
 end
+
+-- Fila de numeros
+addRow({
+    {"1", "1", "!"},
+    {"2", "2", "@"},
+    {"3", "3", "#"},
+    {"4", "4", "$"},
+    {"5", "5", "%"},
+    {"6", "6", "^"},
+    {"7", "7", "&"},
+    {"8", "8", "*"},
+    {"9", "9", "("},
+    {"0", "0", ")"}
+}, 1)
 
 -- Primera fila de letras
-local row1 = "qwertyuiop"
+local row1 = {}
 
-for i = 1, #row1 do
-    local c = row1:sub(i, i)
-    addKey(c, 2 + (i - 1) * 3, 3, 3, c, c:upper())
+for c in ("qwertyuiop"):gmatch(".") do
+    table.insert(row1, {c, c, c:upper()})
 end
+
+addRow(row1, 3)
 
 -- Segunda fila de letras
-local row2 = {"a","s","d","f","g","h","j","k","l","ñ"}
-local upper2 = {"A","S","D","F","G","H","J","K","L","Ñ"}
+local row2 = {
+    {"a", "a", "A"},
+    {"s", "s", "S"},
+    {"d", "d", "D"},
+    {"f", "f", "F"},
+    {"g", "g", "G"},
+    {"h", "h", "H"},
+    {"j", "j", "J"},
+    {"k", "k", "K"},
+    {"l", "l", "L"},
+    {"ñ", "ñ", "Ñ"}
+}
 
-for i, c in ipairs(row2) do
-    addKey(c, 2 + (i - 1) * 3, 5, 3, c, upper2[i])
-end
+addRow(row2, 5)
 
 -- Tercera fila
 addKey("Shift", 1, 7, 5, nil, nil, "shift")
@@ -75,6 +117,7 @@ local row3 = "zxcvbnm"
 
 for i = 1, #row3 do
     local c = row3:sub(i, i)
+
     addKey(c, 7 + (i - 1) * 3, 7, 3, c, c:upper())
 end
 
@@ -82,21 +125,26 @@ addKey("Shift", 28, 7, 5, nil, nil, "shift")
 
 -- Signos de puntuacion
 local symbols = {
-    {",", "<"}, {".", ">"}, {"-", "_"}, {"/", "?"},
-    {":", ";"}, {";", ":"}, {"(", "["}, {")", "]"},
-    {"=", "+"}, {"+", "*"}
+    {",", ",", "<"},
+    {".", ".", ">"},
+    {"-", "-", "_"},
+    {"/", "/", "?"},
+    {":", ":", ";"},
+    {";", ";", ":"},
+    {"(", "(", "["},
+    {")", ")", "]"},
+    {"=", "=", "+"},
+    {"+", "+", "*"}
 }
 
-for i, v in ipairs(symbols) do
-    addKey(v[1], 2 + (i - 1) * 3, 9, 3, v[1], v[2])
-end
+addRow(symbols, 9)
 
 -- Teclas especiales
-addKey("Ctrl", 1, 12, 5, nil, nil, "ctrl")
-addKey("Alt", 7, 12, 5, nil, nil, "alt")
-addKey("Espacio", 13, 12, 8, " ", " ", "char")
-addKey("Bksp", 22, 12, 5, nil, nil, "backspace")
-addKey("Enter", 28, 12, 5, nil, nil, "enter")
+addKey("Ctrl",    1, 12, 5, nil, nil, "ctrl")
+addKey("Alt",     6, 12, 5, nil, nil, "alt")
+addKey("Espacio", 11, 12, 8, " ", " ", "char")
+addKey("Bksp",    19, 12, 6, nil, nil, "backspace")
+addKey("Enter",   25, 12, 8, nil, nil, "enter")
 
 -- Dibujar teclado
 local function drawKeyboard()
@@ -105,30 +153,42 @@ local function drawKeyboard()
     for _, k in ipairs(keyboard) do
         local active = k.kind and held[k.kind]
 
-        win1.setBackgroundColor(
-            active and colors.lime or colors.lightGray
-        )
+        if active then
+            win1.setBackgroundColor(colors.lime)
+        else
+            win1.setBackgroundColor(colors.lightGray)
+        end
+
         win1.setTextColor(colors.black)
 
         win1.setCursorPos(k.x, k.y)
         win1.write(string.rep(" ", k.width))
 
-        local label = k.label
-        local offset = math.floor((k.width - #label) / 2)
+        local offset = math.max(0, math.floor((k.width - #k.label) / 2))
 
         win1.setCursorPos(k.x + offset, k.y)
-        win1.write(label)
+        win1.write(k.label)
     end
 
+    -- Indicadores de estado
     win1.setBackgroundColor(colors.gray)
     win1.setTextColor(colors.white)
+
     win1.setCursorPos(1, 14)
-    win1.write("Teclado tactil")
+
+    local status = string.format(
+        "CTRL:%s ALT:%s SHIFT:%s",
+        held.ctrl and "ON" or "OFF",
+        held.alt and "ON" or "OFF",
+        held.shift and "ON" or "OFF"
+    )
+
+    win1.write(status)
 end
 
 drawKeyboard()
 
--- Obtener codigo de tecla para letras y numeros
+-- Codigos de teclas
 local keyCodes = {}
 
 for c in ("abcdefghijklmnopqrstuvwxyz"):gmatch(".") do
@@ -152,14 +212,19 @@ for digit, name in pairs(digitNames) do
     keyCodes[digit] = keys[name]
 end
 
--- Simular pulsacion y liberacion
-local function tapKey(key)
-    if not key then
-        return
+-- Simular una pulsacion completa
+local function tapKey(key, character)
+    if key then
+        os.queueEvent("key", key, false)
     end
 
-    os.queueEvent("key", key, false)
-    os.queueEvent("key_up", key)
+    if character then
+        os.queueEvent("char", character)
+    end
+
+    if key then
+        os.queueEvent("key_up", key)
+    end
 end
 
 -- Activar o desactivar modificadores
@@ -175,13 +240,18 @@ local function toggleModifier(kind)
     end
 end
 
--- Procesar pulsaciones
+-- Procesar pulsaciones del monitor
 local function keyboardLoop()
     while true do
         local event, side, x, y = os.pullEvent("monitor_touch")
 
+        -- Convertir coordenadas globales a locales
+        local localY = y - keyboardY + 1
+
         for _, k in ipairs(keyboard) do
-            if y == k.y and x >= k.x and x < k.x + k.width then
+            if localY == k.y
+            and x >= k.x
+            and x < k.x + k.width then
 
                 if modifierKeys[k.kind] then
                     toggleModifier(k.kind)
@@ -193,14 +263,17 @@ local function keyboardLoop()
                     tapKey(keys.enter)
 
                 else
-                    local character = held.shift and k.shifted or k.value
+                    local character
+
+                    if held.shift then
+                        character = k.shifted
+                    else
+                        character = k.value
+                    end
 
                     if character then
                         local key = keyCodes[k.value]
-
-                        tapKey(key)
-
-                        os.queueEvent("char", character)
+                        tapKey(key, character)
                     end
                 end
 
@@ -214,7 +287,14 @@ end
 -- Terminal superior
 local function terminalLoop()
     term.redirect(win2)
+
     shell.run("rom/programs/shell.lua")
+
+    term.redirect(term.native())
 end
 
-parallel.waitForAny(terminalLoop, keyboardLoop)
+-- Ejecutar ambas tareas
+parallel.waitForAny(
+    terminalLoop,
+    keyboardLoop
+)
