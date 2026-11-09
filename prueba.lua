@@ -19,7 +19,15 @@ win2.clear()
 
 -- Teclado
 local keyboard = {}
-local shift = false
+
+-- Modificadores activados
+local held = {}
+
+local modifierKeys = {
+    shift = keys.leftShift,
+    ctrl = keys.leftCtrl,
+    alt = keys.leftAlt
+}
 
 local function addKey(label, x, y, width, value, shifted, kind)
     table.insert(keyboard, {
@@ -95,8 +103,13 @@ local function drawKeyboard()
     win1.clear()
 
     for _, k in ipairs(keyboard) do
-        win1.setBackgroundColor(colors.lightGray)
+        local active = k.kind and held[k.kind]
+
+        win1.setBackgroundColor(
+            active and colors.lime or colors.lightGray
+        )
         win1.setTextColor(colors.black)
+
         win1.setCursorPos(k.x, k.y)
         win1.write(string.rep(" ", k.width))
 
@@ -115,6 +128,53 @@ end
 
 drawKeyboard()
 
+-- Obtener codigo de tecla para letras y numeros
+local keyCodes = {}
+
+for c in ("abcdefghijklmnopqrstuvwxyz"):gmatch(".") do
+    keyCodes[c] = keys[c]
+end
+
+local digitNames = {
+    ["1"] = "one",
+    ["2"] = "two",
+    ["3"] = "three",
+    ["4"] = "four",
+    ["5"] = "five",
+    ["6"] = "six",
+    ["7"] = "seven",
+    ["8"] = "eight",
+    ["9"] = "nine",
+    ["0"] = "zero"
+}
+
+for digit, name in pairs(digitNames) do
+    keyCodes[digit] = keys[name]
+end
+
+-- Simular pulsacion y liberacion
+local function tapKey(key)
+    if not key then
+        return
+    end
+
+    os.queueEvent("key", key, false)
+    os.queueEvent("key_up", key)
+end
+
+-- Activar o desactivar modificadores
+local function toggleModifier(kind)
+    local key = modifierKeys[kind]
+
+    if held[kind] then
+        os.queueEvent("key_up", key)
+        held[kind] = false
+    else
+        os.queueEvent("key", key, false)
+        held[kind] = true
+    end
+end
+
 -- Procesar pulsaciones
 local function keyboardLoop()
     while true do
@@ -123,27 +183,25 @@ local function keyboardLoop()
         for _, k in ipairs(keyboard) do
             if y == k.y and x >= k.x and x < k.x + k.width then
 
-                if k.kind == "shift" then
-                    shift = not shift
+                if modifierKeys[k.kind] then
+                    toggleModifier(k.kind)
 
                 elseif k.kind == "backspace" then
-                    os.queueEvent("key", keys.backspace)
+                    tapKey(keys.backspace)
 
                 elseif k.kind == "enter" then
-                    os.queueEvent("key", keys.enter)
-
-                elseif k.kind == "ctrl" then
-                    os.queueEvent("key", keys.leftCtrl)
-                    os.queueEvent("key_up", keys.leftCtrl)
-
-                elseif k.kind == "alt" then
-                    os.queueEvent("key", keys.leftAlt)
-                    os.queueEvent("key_up", keys.leftAlt)
+                    tapKey(keys.enter)
 
                 else
-                    local character = shift and k.shifted or k.value
-                    os.queueEvent("char", character)
-                    shift = false
+                    local character = held.shift and k.shifted or k.value
+
+                    if character then
+                        local key = keyCodes[k.value]
+
+                        tapKey(key)
+
+                        os.queueEvent("char", character)
+                    end
                 end
 
                 drawKeyboard()
@@ -153,7 +211,7 @@ local function keyboardLoop()
     end
 end
 
--- Ejecutar una terminal en la ventana superior
+-- Terminal superior
 local function terminalLoop()
     term.redirect(win2)
     shell.run("rom/programs/shell.lua")
