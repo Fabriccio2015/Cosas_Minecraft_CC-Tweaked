@@ -45,7 +45,7 @@ while true do
             turtle.forward()
         end
     end
-    print("Volviendo a la posicion fila #0 columna #0...")
+    print("Volviendo a la posicion fila #1 columna #1...")
     turtle.turnLeft()
     turtle.turnLeft()
     for fila_actual=filas, 1, -1 do
