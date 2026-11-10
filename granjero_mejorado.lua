@@ -9,6 +9,8 @@ local columnas = 7
 local fila_actual = 1
 local columna_actual = 1
 while true do
+    turtle.select(16)
+    turtle.refuel(2)
     turtle.select(1)
     for fila_actual=1,filas do
         print("Fila #" .. tostring(fila_actual))
@@ -55,10 +57,12 @@ while true do
     end
     turtle.turnRight()
     turtle.turnRight()
+    turtle.turnRight()
+    turtle.turnRight()
     print("Trigo cosechado y replantado")
     turtle.select(2)
     turtle.drop(64)
-    turtle.select(16)
-    turtle.refuel(2)
     sleep(espera_entre_ejecuciones)
+    turtle.turnLeft()
+    turtle.turnLeft()
 end
