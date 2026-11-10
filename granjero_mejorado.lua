@@ -4,8 +4,8 @@ sleep(2)
 print("Coloque las semillas en el slot 1 y pulse cualquier tecla... ")
 _, _ = os.pullEvent("key")
 local espera_entre_ejecuciones = 20
-local filas = 7
-local columnas = 7
+local filas = 5
+local columnas = 5
 local fila_actual = 1
 local columna_actual = 1
 while true do
@@ -57,12 +57,8 @@ while true do
     end
     turtle.turnRight()
     turtle.turnRight()
-    turtle.turnRight()
-    turtle.turnRight()
     print("Trigo cosechado y replantado")
     turtle.select(2)
-    turtle.drop(64)
+    turtle.dropDown(64)
     sleep(espera_entre_ejecuciones)
-    turtle.turnLeft()
-    turtle.turnLeft()
 end
