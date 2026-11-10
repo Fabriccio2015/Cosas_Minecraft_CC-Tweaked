@@ -10,7 +10,7 @@ local fila_actual = 1
 local columna_actual = 1
 while true do
     turtle.select(16)
-    turtle.refuel(2)
+    turtle.refuel(3)
     turtle.select(1)
     for fila_actual=1,filas do
         print("Fila #" .. tostring(fila_actual))
