@@ -1,6 +1,6 @@
 local comando
 local pwd
-print("FabriShell 1.0 para FabriOS")
+print("FabriShell 1.0 para FabriOS Universal")
 local function separar(texto)
     local resultado = {}
     local actual = ""
@@ -42,7 +42,7 @@ while true do
         local argumentos_comando = {table.unpack(comando)}
         table.remove(argumentos_comando, 1)
         if comando[1] then
-            local programa, error = loadfile(fs.combine("/disk2","apps",comando[1]),"bt",_ENV)
+            local programa, error = loadfile(fs.combine("/fabrios","apps",comando[1]),"bt",_ENV)
             if programa then
                 local exito, error = pcall(programa, table.unpack(argumentos_comando))
                 if not exito then
