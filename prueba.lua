@@ -1,24 +1,2 @@
-local l = {}
-
-function l.deepCopy(original, copies)
-    copies = copies or {}
-
-    if type(original) ~= "table" then
-        return original
-    end
-
-    if copies[original] then
-        return copies[original]
-    end
-
-    local copy = {}
-    copies[original] = copy
-
-    for k, v in pairs(original) do
-        copy[l.deepCopy(k, copies)] = l.deepCopy(v, copies)
-    end
-
-    return setmetatable(copy, getmetatable(original))
-end
-
-return l
+local native = { fs = fs, os = os, term = term, peripheral = peripheral, shell = shell, rednet = rednet, redstone = redstone, http = http, gps = gps, disk = disk, settings = settings, multishell = multishell, parallel = parallel, textutils = textutils, paintutils = paintutils, window = window, keys = keys, colours = colours, colors = colors, turtle = turtle, commands = commands, pocket = pocket, io = io, vector = vector }
+return native
