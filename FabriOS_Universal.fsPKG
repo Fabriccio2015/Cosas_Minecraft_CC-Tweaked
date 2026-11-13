@@ -1,8 +1,4 @@
 fsPKG1
-F 36 58
-NO_EJECUTAR_DIRECTO_DEL_DISQUETE.txt
-NO EJECUTES EL OS DIRECTO DEL DISQUETE, INSTALALO PRIMERO
-
 D 4
 apps
 F 11 60
@@ -1297,18 +1293,6 @@ Ejecute este comando:
 
 Paso 2:
 Eso es todo :D
-
-F 17 123
-como_instalar.txt
-Paso 1:
-Ejecute este comando:
-mkdir /fabrios
-
-Paso 2:
-Copie todo el contenido del disquete a la carpeta
-
-Paso 3:
-Disfrute!
 
 D 6
 system
