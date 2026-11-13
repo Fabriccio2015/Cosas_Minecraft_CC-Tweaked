@@ -1,0 +1,312 @@
+fsPKG1
+D 4
+apps
+F 11 60
+apps/cd.lua
+carpeta = shell.resolve(({ ... })[1])
+shell.setDir(carpeta)
+
+F 14 36
+apps/clear.lua
+term.clear()
+term.setCursorPos(1,1)
+
+F 11 300
+apps/cp.lua
+local args = { ... }
+if #args < 2 then
+    error("Especifique los 2 argumentos")
+end
+local origen = "/" .. shell.resolve(args[1])
+local destino = "/" .. shell.resolve(args[2])
+if not fs.exists(origen) then
+    error("El archivo o directorio que quiere copiar no existe")
+end
+fs.copy(origen, destino)
+
+F 13 56
+apps/echo.lua
+local args = { ... }
+if args[1] then print(args[1]) end
+
+F 19 1446
+apps/fabrishell.lua
+local comando
+local pwd
+print("FabriShell 1.0 para FabriOS Universal")
+local function separar(texto)
+    local resultado = {}
+    local actual = ""
+    local escapar = false
+
+    for i = 1, #texto do
+        local c = texto:sub(i, i)
+
+        if escapar then
+            actual = actual .. c
+            escapar = false
+        elseif c == "\\" then
+            escapar = true
+        elseif c == " " then
+            if #actual > 0 then
+                table.insert(resultado, actual)
+                actual = ""
+            end
+        else
+            actual = actual .. c
+        end
+    end
+
+    if escapar then
+        actual = actual .. "\\"
+    end
+
+    if #actual > 0 then
+        table.insert(resultado, actual)
+    end
+
+    return resultado
+end
+while true do
+    pwd = shell.resolve(".")
+    write("[/" .. pwd .. "]>")
+    comando = separar(read())
+    if comando[1] == "exit" then break else
+        local argumentos_comando = {table.unpack(comando)}
+        table.remove(argumentos_comando, 1)
+        if comando[1] then
+            local programa, error = loadfile(fs.combine("/fabrios","apps",comando[1]),"bt",_ENV)
+            if programa then
+                local exito, error = pcall(programa, table.unpack(argumentos_comando))
+                if not exito then
+                    print("ERROR: " .. error)
+                end
+            else
+                print("ERROR: " .. error)
+            end
+        end
+    end
+end
+
+F 14 22
+apps/hello.lua
+print("Hello World!")
+
+F 13 21
+apps/hola.lua
+print("Hola mundo!")
+
+F 11 223
+apps/ls.lua
+local argumentos = {...}
+local carpeta = shell.resolve(argumentos[1] or ".")
+
+for _, i in ipairs(fs.list(carpeta)) do
+    write(i)
+    if fs.isDir(fs.combine(carpeta, i)) then
+        write("/")
+    end
+    write("\n")
+end
+
+F 12 87
+apps/lua.lua
+local args = { ... }
+loadfile("/fabrios/system/lua.lua","bt",_ENV)(table.unpack(args))
+
+F 11 296
+apps/mv.lua
+local args = { ... }
+if #args < 2 then
+    error("Especifique los 2 argumentos")
+end
+local origen = "/" .. shell.resolve(args[1])
+local destino = "/" .. shell.resolve(args[2])
+if not fs.exists(origen) then
+    error("El archivo que quiere mover/renombrar no existe")
+end
+fs.move(origen, destino)
+
+F 15 75
+apps/reboot.lua
+term.clear()
+term.setCursorPos(1,1)
+term.setCursorBlink(false)
+os.reboot()
+
+F 20 334
+apps/run_command.lua
+local args = { ... }
+local args_comando = {table.unpack(args)}
+table.remove(args_comando, 1)
+local programa, error = loadfile(args[1],"bt",_ENV)
+if programa then
+    local exito, error = pcall(programa, table.unpack(args_comando))
+    if not exito then
+        print("ERROR: " .. error)
+    end
+else
+    print("ERROR: " .. error)
+end
+
+F 17 77
+apps/shutdown.lua
+term.clear()
+term.setCursorPos(1,1)
+term.setCursorBlink(false)
+os.shutdown()
+
+F 18 48
+apps/test-args.lua
+for _, i in ipairs({ ... }) do
+    print(i)
+end
+
+F 17 68
+como_arrancar.txt
+Paso 1:
+Ejecute este comando:
+/fabrios/boot
+
+Paso 2:
+Eso es todo :D
+
+D 6
+system
+D 13
+system/config
+F 23 29
+system/config/shell.txt
+/fabrios/apps/fabrishell.lua
+
+F 15 338
+system/init.lua
+if fs.exists("/fabrios/autoexec.lua") then
+    loadfile("/fabrios/autoexec.lua","t",_ENV)()
+end
+local shell = "/fabrios/apps/lua.lua"
+if fs.exists("/fabrios/system/config/shell.txt") then
+    local archivo = fs.open("/fabrios/system/config/shell.txt","r")
+    shell = archivo.readAll()
+    archivo.close()
+end
+loadfile(shell,"bt",_ENV)()
+
+F 14 3687
+system/lua.lua
+-- SPDX-FileCopyrightText: 2017 Daniel Ratcliffe
+--
+-- SPDX-License-Identifier: LicenseRef-CCPL
+
+local tArgs = { ... }
+if #tArgs > 0 then
+    print("This is an interactive Lua prompt.")
+    print("To run a lua program, just type its name.")
+    return
+end
+
+local pretty = require "cc.pretty"
+local exception = require "cc.internal.exception"
+
+local running = true
+local tCommandHistory = {}
+local tEnv = {
+    ["exit"] = setmetatable({}, {
+        __tostring = function() return "Call exit() to exit." end,
+        __call = function() running = false end,
+    }),
+    ["_echo"] = function(...)
+        return ...
+    end,
+}
+setmetatable(tEnv, { __index = _ENV })
+
+-- Replace our require with new instance that loads from the current directory
+-- rather than from /rom/programs. This makes it more friendly to use and closer
+-- to what you'd expect.
+do
+    local make_package = require "cc.require".make
+    local dir = shell.dir()
+    tEnv.require, tEnv.package = make_package(tEnv, dir)
+end
+
+if term.isColour() then
+    term.setTextColour(colours.yellow)
+end
+print("Interactive Lua prompt.")
+print("Call exit() to exit.")
+term.setTextColour(colours.white)
+
+local chunk_idx, chunk_map = 1, {}
+while running do
+    --if term.isColour() then
+    --    term.setTextColour( colours.yellow )
+    --end
+    write("lua> ")
+    --term.setTextColour( colours.white )
+
+    local input = read(nil, tCommandHistory, function(sLine)
+        if settings.get("lua.autocomplete") then
+            local nStartPos = string.find(sLine, "[a-zA-Z0-9_%.:]+$")
+            if nStartPos then
+                sLine = string.sub(sLine, nStartPos)
+            end
+            if #sLine > 0 then
+                return textutils.complete(sLine, tEnv)
+            end
+        end
+        return nil
+    end)
+    if input:match("%S") and tCommandHistory[#tCommandHistory] ~= input then
+        table.insert(tCommandHistory, input)
+    end
+    if settings.get("lua.warn_against_use_of_local") and input:match("^%s*local%s+") then
+        if term.isColour() then
+            term.setTextColour(colours.yellow)
+        end
+       print("To access local variables in later inputs, remove the local keyword.")
+       term.setTextColour(colours.white)
+    end
+
+    local name, offset = "=lua[" .. chunk_idx .. "]", 0
+
+    local func, err = load(input, name, "t", tEnv)
+    if load("return " .. input) then
+        -- We wrap the expression with a call to _echo(...), which prevents tail
+        -- calls (and thus confusing errors). Note we check this is a valid
+        -- expression separately, to avoid accepting inputs like `)--` (which are
+        -- parsed as `_echo()--)`.
+        func = load("return _echo(" .. input .. "\n)", name, "t", tEnv)
+        offset = 13
+    end
+
+    if func then
+        chunk_map[name] = { contents = input, offset = offset }
+        chunk_idx = chunk_idx + 1
+
+        local results = table.pack(exception.try(func))
+        if results[1] then
+            for i = 2, results.n do
+                local value = results[i]
+                local ok, serialised = pcall(pretty.pretty, value, {
+                    function_args = settings.get("lua.function_args"),
+                    function_source = settings.get("lua.function_source"),
+                })
+                if ok then
+                    pretty.print(serialised)
+                else
+                    print(tostring(value))
+                end
+            end
+        else
+            printError(results[2])
+            exception.report(results[2], results[3], chunk_map)
+        end
+    else
+        local parser = require "cc.internal.syntax"
+        if parser.parse_repl(input) then printError(err) end
+    end
+
+end
+
+E
