@@ -1,0 +1,649 @@
+fsPKG1
+D 4
+apps
+F 11 60
+apps/cd.lua
+carpeta = shell.resolve(({ ... })[1])
+shell.setDir(carpeta)
+
+F 14 36
+apps/clear.lua
+term.clear()
+term.setCursorPos(1,1)
+
+F 11 300
+apps/cp.lua
+local args = { ... }
+if #args < 2 then
+    error("Especifique los 2 argumentos")
+end
+local origen = "/" .. shell.resolve(args[1])
+local destino = "/" .. shell.resolve(args[2])
+if not fs.exists(origen) then
+    error("El archivo o directorio que quiere copiar no existe")
+end
+fs.copy(origen, destino)
+
+F 15 1061
+apps/delete.lua
+-- SPDX-FileCopyrightText: 2017 Daniel Ratcliffe
+--
+-- SPDX-License-Identifier: LicenseRef-CCPL
+
+local args = table.pack(...)
+
+if args.n < 1 then
+    local programName = arg[0] or fs.getName(shell.getRunningProgram())
+    print("Usage: " .. programName .. " <paths>")
+    return
+end
+
+for i = 1, args.n do
+    local files = fs.find(shell.resolve(args[i]))
+    if #files > 0 then
+        for _, file in ipairs(files) do
+            if fs.isReadOnly(file) then
+                printError("Cannot delete read-only file /" .. file)
+            elseif fs.isDriveRoot(file) then
+                printError("Cannot delete mount /" .. file)
+                if fs.isDir(file) then
+                    print("To delete its contents run rm /" .. fs.combine(file, "*"))
+                end
+            else
+                local ok, err = pcall(fs.delete, file)
+                if not ok then
+                    printError((err:gsub("^pcall: ", "")))
+                end
+            end
+        end
+    else
+        printError(args[i] .. ": No matching files")
+    end
+end
+
+F 13 56
+apps/echo.lua
+local args = { ... }
+if args[1] then print(args[1]) end
+
+F 19 1446
+apps/fabrishell.lua
+local comando
+local pwd
+print("FabriShell 1.0 para FabriOS Universal")
+local function separar(texto)
+    local resultado = {}
+    local actual = ""
+    local escapar = false
+
+    for i = 1, #texto do
+        local c = texto:sub(i, i)
+
+        if escapar then
+            actual = actual .. c
+            escapar = false
+        elseif c == "\\" then
+            escapar = true
+        elseif c == " " then
+            if #actual > 0 then
+                table.insert(resultado, actual)
+                actual = ""
+            end
+        else
+            actual = actual .. c
+        end
+    end
+
+    if escapar then
+        actual = actual .. "\\"
+    end
+
+    if #actual > 0 then
+        table.insert(resultado, actual)
+    end
+
+    return resultado
+end
+while true do
+    pwd = shell.resolve(".")
+    write("[/" .. pwd .. "]>")
+    comando = separar(read())
+    if comando[1] == "exit" then break else
+        local argumentos_comando = {table.unpack(comando)}
+        table.remove(argumentos_comando, 1)
+        if comando[1] then
+            local programa, error = loadfile(fs.combine("/fabrios","apps",comando[1]),"bt",_ENV)
+            if programa then
+                local exito, error = pcall(programa, table.unpack(argumentos_comando))
+                if not exito then
+                    print("ERROR: " .. error)
+                end
+            else
+                print("ERROR: " .. error)
+            end
+        end
+    end
+end
+
+F 14 22
+apps/hello.lua
+print("Hello World!")
+
+F 13 21
+apps/hola.lua
+print("Hola mundo!")
+
+F 11 223
+apps/ls.lua
+local argumentos = {...}
+local carpeta = shell.resolve(argumentos[1] or ".")
+
+for _, i in ipairs(fs.list(carpeta)) do
+    write(i)
+    if fs.isDir(fs.combine(carpeta, i)) then
+        write("/")
+    end
+    write("\n")
+end
+
+F 12 87
+apps/lua.lua
+local args = { ... }
+loadfile("/fabrios/system/lua.lua","bt",_ENV)(table.unpack(args))
+
+F 14 579
+apps/mkdir.lua
+-- SPDX-FileCopyrightText: 2017 Daniel Ratcliffe
+--
+-- SPDX-License-Identifier: LicenseRef-CCPL
+
+local tArgs = { ... }
+
+if #tArgs < 1 then
+    local programName = arg[0] or fs.getName(shell.getRunningProgram())
+    print("Usage: " .. programName .. " <paths>")
+    return
+end
+
+for _, v in ipairs(tArgs) do
+    local sNewDir = shell.resolve(v)
+    if fs.exists(sNewDir) and not fs.isDir(sNewDir) then
+        printError(v .. ": Destination exists")
+    elseif fs.isReadOnly(sNewDir) then
+        printError(v .. ": Access denied")
+    else
+        fs.makeDir(sNewDir)
+    end
+end
+
+F 11 296
+apps/mv.lua
+local args = { ... }
+if #args < 2 then
+    error("Especifique los 2 argumentos")
+end
+local origen = "/" .. shell.resolve(args[1])
+local destino = "/" .. shell.resolve(args[2])
+if not fs.exists(origen) then
+    error("El archivo que quiere mover/renombrar no existe")
+end
+fs.move(origen, destino)
+
+F 17 4544
+apps/pastebin.lua
+-- SPDX-FileCopyrightText: 2017 Daniel Ratcliffe
+--
+-- SPDX-License-Identifier: LicenseRef-CCPL
+
+local function printUsage()
+    local programName = arg[0] or fs.getName(shell.getRunningProgram())
+    print("Usages:")
+    print(programName .. " put <filename>")
+    print(programName .. " get <code> <filename>")
+    print(programName .. " run <code> <arguments>")
+end
+
+local tArgs = { ... }
+if #tArgs < 2 then
+    printUsage()
+    return
+end
+
+if not http then
+    printError("Pastebin requires the http API, but it is not enabled")
+    printError("Set http.enabled to true in CC: Tweaked's server config")
+    return
+end
+
+--- Attempts to guess the pastebin ID from the given code or URL
+local function extractId(paste)
+    local patterns = {
+        "^([%a%d]+)$",
+        "^https?://pastebin.com/([%a%d]+)$",
+        "^pastebin.com/([%a%d]+)$",
+        "^https?://pastebin.com/raw/([%a%d]+)$",
+        "^pastebin.com/raw/([%a%d]+)$",
+    }
+
+    for i = 1, #patterns do
+        local code = paste:match(patterns[i])
+        if code then return code end
+    end
+
+    return nil
+end
+
+local function get(url)
+    local paste = extractId(url)
+    if not paste then
+        io.stderr:write("Invalid pastebin code.\n")
+        io.write("The code is the ID at the end of the pastebin.com URL.\n")
+        return
+    end
+
+    write("Connecting to pastebin.com... ")
+    -- Add a cache buster so that spam protection is re-checked
+    local cacheBuster = ("%x"):format(math.random(0, 2 ^ 30))
+    local response, err = http.get(
+        "https://pastebin.com/raw/" .. textutils.urlEncode(paste) .. "?cb=" .. cacheBuster
+    )
+
+    if response then
+        -- If spam protection is activated, we get redirected to /paste with Content-Type: text/html
+        local headers = response.getResponseHeaders()
+        if not headers["Content-Type"] or not headers["Content-Type"]:find("^text/plain") then
+            io.stderr:write("Failed.\n")
+            print("Pastebin blocked the download due to spam protection. Please complete the captcha in a web browser: https://pastebin.com/" .. textutils.urlEncode(paste))
+            return
+        end
+
+        print("Success.")
+
+        local sResponse = response.readAll()
+        response.close()
+        return sResponse
+    else
+        io.stderr:write("Failed.\n")
+        print(err)
+    end
+end
+
+local sCommand = tArgs[1]
+if sCommand == "put" then
+    -- Upload a file to pastebin.com
+    -- Determine file to upload
+    local sFile = tArgs[2]
+    local sPath = shell.resolve(sFile)
+    if not fs.exists(sPath) or fs.isDir(sPath) then
+        print("No such file")
+        return
+    end
+
+    -- Read in the file
+    local sName = fs.getName(sPath)
+    local file = fs.open(sPath, "r")
+    local sText = file.readAll()
+    file.close()
+
+    -- POST the contents to pastebin
+    write("Connecting to pastebin.com... ")
+    local key = "0ec2eb25b6166c0c27a394ae118ad829"
+    local response = http.post(
+        "https://pastebin.com/api/api_post.php",
+        "api_option=paste&" ..
+        "api_dev_key=" .. key .. "&" ..
+        "api_paste_format=lua&" ..
+        "api_paste_name=" .. textutils.urlEncode(sName) .. "&" ..
+        "api_paste_code=" .. textutils.urlEncode(sText)
+    )
+
+    if response then
+        print("Success.")
+
+        local sResponse = response.readAll()
+        response.close()
+
+        local sCode = string.match(sResponse, "[^/]+$")
+        print("Uploaded as " .. sResponse)
+        print("Run \"pastebin get " .. sCode .. "\" to download anywhere")
+
+    else
+        print("Failed.")
+    end
+
+elseif sCommand == "get" then
+    -- Download a file from pastebin.com
+    if #tArgs < 3 then
+        printUsage()
+        return
+    end
+
+    -- Determine file to download
+    local sCode = tArgs[2]
+    local sFile = tArgs[3]
+    local sPath = shell.resolve(sFile)
+    if fs.exists(sPath) then
+        print("File already exists")
+        return
+    end
+
+    -- GET the contents from pastebin
+    local res = get(sCode)
+    if res then
+        local file = fs.open(sPath, "w")
+        file.write(res)
+        file.close()
+
+        print("Downloaded as " .. sFile)
+    end
+elseif sCommand == "run" then
+    local sCode = tArgs[2]
+
+    local res = get(sCode)
+    if res then
+        local func, err = load(res, sCode, "t", _ENV)
+        if not func then
+            printError(err)
+            return
+        end
+        local success, msg = pcall(func, select(3, ...))
+        if not success then
+            printError(msg)
+        end
+    end
+else
+    printUsage()
+    return
+end
+
+F 15 75
+apps/reboot.lua
+term.clear()
+term.setCursorPos(1,1)
+term.setCursorBlink(false)
+os.reboot()
+
+F 11 88
+apps/rm.lua
+local args = { ... }
+loadfile("/fabrios/apps/delete.lua","bt",_ENV)(table.unpack(args))
+
+F 20 334
+apps/run_command.lua
+local args = { ... }
+local args_comando = {table.unpack(args)}
+table.remove(args_comando, 1)
+local programa, error = loadfile(args[1],"bt",_ENV)
+if programa then
+    local exito, error = pcall(programa, table.unpack(args_comando))
+    if not exito then
+        print("ERROR: " .. error)
+    end
+else
+    print("ERROR: " .. error)
+end
+
+F 17 77
+apps/shutdown.lua
+term.clear()
+term.setCursorPos(1,1)
+term.setCursorBlink(false)
+os.shutdown()
+
+F 18 48
+apps/test-args.lua
+for _, i in ipairs({ ... }) do
+    print(i)
+end
+
+F 13 2030
+apps/wget.lua
+-- SPDX-FileCopyrightText: 2017 Daniel Ratcliffe
+--
+-- SPDX-License-Identifier: LicenseRef-CCPL
+
+local function printUsage()
+    local programName = arg[0] or fs.getName(shell.getRunningProgram())
+    print("Usage:")
+    print(programName .. " <url> [filename]")
+    print(programName .. " run <url>")
+end
+
+local tArgs = { ... }
+
+local run = false
+if tArgs[1] == "run" then
+    table.remove(tArgs, 1)
+    run = true
+end
+
+if #tArgs < 1 then
+    printUsage()
+    return
+end
+
+local url = table.remove(tArgs, 1)
+
+if not http then
+    printError("wget requires the http API, but it is not enabled")
+    printError("Set http.enabled to true in CC: Tweaked's server config")
+    return
+end
+
+local function getFilename(sUrl)
+    sUrl = sUrl:gsub("[#?].*" , ""):gsub("/+$" , "")
+    return sUrl:match("/([^/]+)$")
+end
+
+local function get(url)
+    -- Check if the URL is valid
+    local ok, err = http.checkURL(url)
+    if not ok then
+        printError(err or "Invalid URL.")
+        return
+    end
+
+    write("Connecting to " .. url .. "... ")
+
+    local response, err = http.get(url)
+    if not response then
+        printError(err)
+        return
+    end
+
+    print("Success.")
+
+    local sResponse = response.readAll()
+    response.close()
+    return sResponse or ""
+end
+
+if run then
+    local res = get(url)
+    if not res then return end
+
+    local func, err = load(res, getFilename(url), "t", _ENV)
+    if not func then
+        printError(err)
+        return
+    end
+
+    local ok, err = pcall(func, table.unpack(tArgs))
+    if not ok then
+        printError(err)
+    end
+else
+    local sFile = tArgs[1] or getFilename(url) or url
+    local sPath = shell.resolve(sFile)
+    if fs.exists(sPath) then
+        print("File already exists")
+        return
+    end
+
+    local res = get(url)
+    if not res then return end
+
+    local file, err = fs.open(sPath, "wb")
+    if not file then
+        printError("Cannot save file: " .. err)
+        return
+    end
+
+    file.write(res)
+    file.close()
+
+    print("Downloaded as " .. sFile)
+end
+
+F 8 49
+boot.lua
+loadfile("/fabrios/system/init.lua","bt",_ENV)()
+
+F 17 68
+como_arrancar.txt
+Paso 1:
+Ejecute este comando:
+/fabrios/boot
+
+Paso 2:
+Eso es todo :D
+
+D 6
+system
+D 13
+system/config
+F 23 29
+system/config/shell.txt
+/fabrios/apps/fabrishell.lua
+
+F 15 338
+system/init.lua
+if fs.exists("/fabrios/autoexec.lua") then
+    loadfile("/fabrios/autoexec.lua","t",_ENV)()
+end
+local shell = "/fabrios/apps/lua.lua"
+if fs.exists("/fabrios/system/config/shell.txt") then
+    local archivo = fs.open("/fabrios/system/config/shell.txt","r")
+    shell = archivo.readAll()
+    archivo.close()
+end
+loadfile(shell,"bt",_ENV)()
+
+F 14 3687
+system/lua.lua
+-- SPDX-FileCopyrightText: 2017 Daniel Ratcliffe
+--
+-- SPDX-License-Identifier: LicenseRef-CCPL
+
+local tArgs = { ... }
+if #tArgs > 0 then
+    print("This is an interactive Lua prompt.")
+    print("To run a lua program, just type its name.")
+    return
+end
+
+local pretty = require "cc.pretty"
+local exception = require "cc.internal.exception"
+
+local running = true
+local tCommandHistory = {}
+local tEnv = {
+    ["exit"] = setmetatable({}, {
+        __tostring = function() return "Call exit() to exit." end,
+        __call = function() running = false end,
+    }),
+    ["_echo"] = function(...)
+        return ...
+    end,
+}
+setmetatable(tEnv, { __index = _ENV })
+
+-- Replace our require with new instance that loads from the current directory
+-- rather than from /rom/programs. This makes it more friendly to use and closer
+-- to what you'd expect.
+do
+    local make_package = require "cc.require".make
+    local dir = shell.dir()
+    tEnv.require, tEnv.package = make_package(tEnv, dir)
+end
+
+if term.isColour() then
+    term.setTextColour(colours.yellow)
+end
+print("Interactive Lua prompt.")
+print("Call exit() to exit.")
+term.setTextColour(colours.white)
+
+local chunk_idx, chunk_map = 1, {}
+while running do
+    --if term.isColour() then
+    --    term.setTextColour( colours.yellow )
+    --end
+    write("lua> ")
+    --term.setTextColour( colours.white )
+
+    local input = read(nil, tCommandHistory, function(sLine)
+        if settings.get("lua.autocomplete") then
+            local nStartPos = string.find(sLine, "[a-zA-Z0-9_%.:]+$")
+            if nStartPos then
+                sLine = string.sub(sLine, nStartPos)
+            end
+            if #sLine > 0 then
+                return textutils.complete(sLine, tEnv)
+            end
+        end
+        return nil
+    end)
+    if input:match("%S") and tCommandHistory[#tCommandHistory] ~= input then
+        table.insert(tCommandHistory, input)
+    end
+    if settings.get("lua.warn_against_use_of_local") and input:match("^%s*local%s+") then
+        if term.isColour() then
+            term.setTextColour(colours.yellow)
+        end
+       print("To access local variables in later inputs, remove the local keyword.")
+       term.setTextColour(colours.white)
+    end
+
+    local name, offset = "=lua[" .. chunk_idx .. "]", 0
+
+    local func, err = load(input, name, "t", tEnv)
+    if load("return " .. input) then
+        -- We wrap the expression with a call to _echo(...), which prevents tail
+        -- calls (and thus confusing errors). Note we check this is a valid
+        -- expression separately, to avoid accepting inputs like `)--` (which are
+        -- parsed as `_echo()--)`.
+        func = load("return _echo(" .. input .. "\n)", name, "t", tEnv)
+        offset = 13
+    end
+
+    if func then
+        chunk_map[name] = { contents = input, offset = offset }
+        chunk_idx = chunk_idx + 1
+
+        local results = table.pack(exception.try(func))
+        if results[1] then
+            for i = 2, results.n do
+                local value = results[i]
+                local ok, serialised = pcall(pretty.pretty, value, {
+                    function_args = settings.get("lua.function_args"),
+                    function_source = settings.get("lua.function_source"),
+                })
+                if ok then
+                    pretty.print(serialised)
+                else
+                    print(tostring(value))
+                end
+            end
+        else
+            printError(results[2])
+            exception.report(results[2], results[3], chunk_map)
+        end
+    else
+        local parser = require "cc.internal.syntax"
+        if parser.parse_repl(input) then printError(err) end
+    end
+
+end
+
+E
