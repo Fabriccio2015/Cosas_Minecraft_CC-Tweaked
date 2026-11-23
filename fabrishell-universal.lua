@@ -1,6 +1,6 @@
 local comando
 local pwd
-print("FabriShell Universal 1.0")
+print("FabriShell Universal 1.0.1")
 local function separar(texto)
     local resultado = {}
     local actual = ""
@@ -40,7 +40,7 @@ while true do
     comando = separar(read())
     if comando[1] == "exit" then break else
         if comando[1] then
-            shell.run(table.unpack(comando))
+            shell.execute(table.unpack(comando))
         end
     end
 end
