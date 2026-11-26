@@ -31,17 +31,17 @@ function morse(texto, frecuencia)
     end
 end
 
+function clear()
+    term.clear()
+    term.setCursorPos(1, 1)
+end
+
 local monitor = peripheral.wrap("front")
 if monitor then
     term.redirect(monitor)
 else
     tipo_error = "pantalla"
     goto error
-end
-
-function clear()
-    term.clear()
-    term.setCursorPos(1, 1)
 end
 
 clear()
