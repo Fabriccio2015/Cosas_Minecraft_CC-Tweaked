@@ -7,8 +7,8 @@ end
 
 local function manejador_reset()
     while true do
-        os.pullEvent("redstone")
-
+        sleep(0.25)
+        
         if redstone.getInput("top") then
             print("RESET!!!")
             sleep(0.25)
