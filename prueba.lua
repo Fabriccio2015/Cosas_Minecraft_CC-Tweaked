@@ -41,17 +41,17 @@ if monitor then
     term.redirect(monitor)
 else
     tipo_error = "pantalla"
-    goto error
 end
 
-clear()
-print("FabriPC 3")
-shell.run("motd")
-shell.run("shell")
-clear()
-os.shutdown()
+if tipo_error == "" then
+    clear()
+    print("FabriPC 3")
+    shell.run("motd")
+    shell.run("shell")
+    clear()
+    os.shutdown()
+end
 
-::error::
 clear()
 write("ERROR: ")
 if tipo_error == "pantalla" then
